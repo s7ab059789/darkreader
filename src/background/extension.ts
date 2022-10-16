@@ -76,7 +76,7 @@ export class Extension {
         DevTools.init(async () => this.onSettingsChanged());
         Messenger.init(this.getMessengerAdapter());
         TabManager.init({
-            getConnectionMessage: async (tabURL, frameURL, isTopFrame) => this.getConnectionMessage(tabURL, frameURL, isTopFrame),
+            getConnectionMessage: async (tabURL, url, isTopFrame) => this.getConnectionMessage(tabURL, url, isTopFrame),
             getTabMessage: this.getTabMessage,
             onColorSchemeChange: this.onColorSchemeChange,
         });
@@ -399,8 +399,8 @@ export class Extension {
 
     private static async getActiveTabInfo() {
         await this.loadData();
-        const url = await TabManager.getActiveTabURL();
-        const info = this.getTabInfo(url);
+        const tabURL = await TabManager.getActiveTabURL();
+        const info = this.getTabInfo(tabURL);
         info.isInjected = await TabManager.canAccessActiveTab();
         if (UserStorage.settings.detectDarkTheme) {
             info.isDarkThemeDetected = await TabManager.isActiveTabDarkThemeDetected();
@@ -585,12 +585,12 @@ export class Extension {
     //
     //----------------------
 
-    private static getTabInfo(url: string): TabInfo {
+    private static getTabInfo(tabURL: string): TabInfo {
         const {DARK_SITES} = ConfigManager;
-        const isInDarkList = isURLInList(url, DARK_SITES);
-        const isProtected = !canInjectScript(url);
+        const isInDarkList = isURLInList(tabURL, DARK_SITES);
+        const isProtected = !canInjectScript(tabURL);
         return {
-            url,
+            url: tabURL,
             isInDarkList,
             isProtected,
             isInjected: null,
@@ -600,8 +600,8 @@ export class Extension {
 
     private static getTabMessage = (tabURL: string, url: string, isTopFrame: boolean): TabData => {
         const settings = UserStorage.settings;
-        const urlInfo = this.getTabInfo(tabURL);
-        if (this.isExtensionSwitchedOn() && isURLEnabled(tabURL, settings, urlInfo)) {
+        const tabInfo = this.getTabInfo(tabURL);
+        if (this.isExtensionSwitchedOn() && isURLEnabled(tabURL, settings, tabInfo)) {
             const custom = settings.customThemes.find(({url: urlList}) => isURLInList(tabURL, urlList));
             const preset = custom ? null : settings.presets.find(({urls}) => isURLInList(tabURL, urls));
             let theme = custom ? custom.theme : preset ? preset.theme : settings.theme;

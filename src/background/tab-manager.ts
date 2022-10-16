@@ -49,7 +49,7 @@ export default class TabManager {
     private static tabs: {[tabId: number]: {[frameId: number]: FrameInfo}};
     private static stateManager: StateManager<TabManagerState>;
     private static fileLoader: {get: (params: FetchRequestParameters) => Promise<string>} = null;
-    private static getTabMessage: (tabURL: string, frameURL: string, isTopFrame: boolean) => Message;
+    private static getTabMessage: (tabURL: string, url: string, isTopFrame: boolean) => Message;
     private static timestamp: number = null;
     private static LOCAL_STORAGE_KEY = 'TabManager-state';
 
@@ -89,9 +89,9 @@ export default class TabManager {
                     }
 
                     const tabId = sender.tab.id;
+                    const tabURL = sender.tab.url;
                     const {frameId} = sender;
                     const url = sender.url;
-                    const tabURL = sender.tab.url;
 
                     this.addFrame(tabId, frameId, url, this.timestamp);
 
@@ -118,10 +118,11 @@ export default class TabManager {
                     onColorSchemeChange(message.data.isDark);
                     await this.stateManager.loadState();
                     const tabId = sender.tab.id;
+                    const tabURL = sender.tab.url;
                     const frameId = sender.frameId;
                     const url = sender.url;
                     if (this.tabs[tabId][frameId].timestamp < this.timestamp) {
-                        const message = this.getTabMessage(sender.tab.url, url, frameId === 0);
+                        const message = this.getTabMessage(tabURL, url, frameId === 0);
                         chrome.tabs.sendMessage<Message>(tabId, message, {frameId});
                     }
                     this.tabs[sender.tab.id][sender.frameId] = {
