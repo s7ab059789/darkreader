@@ -1,11 +1,11 @@
-import {ExtensionData, Message, TabInfo} from '../../definitions';
+import type {ExtensionData, Message, TabInfo} from '../../definitions';
 
 type messageListenerResponse = {data?: ExtensionData | TabInfo; error?: string} | 'unsupportedSender';
 // Note: return value should be only true or falsy
 type messageListenerCallback = (message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response: messageListenerResponse) => void) => true | void | Promise<void>;
 
 export default class RuntimeMesseageListener {
-    static listeners: Array<messageListenerCallback>;
+    static listeners: messageListenerCallback[];
 
     static addListener(callback: messageListenerCallback) {
         if (!this.listeners) {
