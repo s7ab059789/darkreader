@@ -1,10 +1,11 @@
 import {ExtensionData, Message, TabInfo} from '../../definitions';
 
 type messageListenerResponse = {data?: ExtensionData | TabInfo; error?: string} | 'unsupportedSender';
-type messageListenerCallback = (message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response: messageListenerResponse) => void) => void;
+type messageListenerCallback = (message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response: messageListenerResponse) => void) => boolean | void | Promise<void>;
 
 export default class RuntimeMesseageListener {
     static listeners: Array<messageListenerCallback>;
+
     static addListener(callback: messageListenerCallback) {
         if (!this.listeners) {
             this.listeners = [callback];
@@ -13,10 +14,13 @@ export default class RuntimeMesseageListener {
             this.listeners.push(callback);
         }
     }
+
     private static singleListener(message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response: messageListenerResponse) => void) {
-        this.listeners.forEach((listener) => listener(message, sender, (response: messageListenerResponse) => {
-            sendResponse(response);
-        }));
-        return true;
+        for (let i = 0; i < this.listeners.length; i++) {
+            if (this.listeners[i](message, sender, sendResponse) === true) {
+                return true;
+            }
+        }
+        return false;
     }
 }
