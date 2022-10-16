@@ -1,6 +1,7 @@
 import {isFirefox} from '../utils/platform';
 import type {ExtensionData, FilterConfig, TabInfo, Message, UserSettings} from '../definitions';
 import {MessageType} from '../utils/message';
+import RuntimeMesseageListener from './utils/messaging';
 
 export interface ExtensionAdapter {
     collect: () => Promise<ExtensionData>;
@@ -27,7 +28,7 @@ export default class Messenger {
         this.adapter = adapter;
         this.changeListenerCount = 0;
 
-        chrome.runtime.onMessage.addListener((message, sender, sendResponse) => this.messageListener(message, sender, sendResponse));
+        RuntimeMesseageListener.addListener((message, sender, sendResponse) => this.messageListener(message, sender, sendResponse));
 
         // This is a work-around for Firefox bug which does not permit responding to onMessage handler above.
         if (isFirefox) {

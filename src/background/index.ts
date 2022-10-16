@@ -7,6 +7,7 @@ import {makeChromiumHappy} from './make-chromium-happy';
 import DevTools from './devtools';
 import {logInfo} from './utils/log';
 import {sendLog} from './utils/sendLog';
+import RuntimeMesseageListener from './utils/messaging';
 
 type TestMessage = {
     type: 'getManifest';
@@ -212,7 +213,7 @@ if (__TEST__) {
 }
 
 if (__DEBUG__ && __LOG__) {
-    chrome.runtime.onMessage.addListener((message: Message) => {
+    RuntimeMesseageListener.addListener((message: Message) => {
         if (message.type === 'cs-log') {
             sendLog(message.data.level, message.data.log);
         }

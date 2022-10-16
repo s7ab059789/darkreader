@@ -8,6 +8,7 @@ import {logInfo, logWarn} from './utils/log';
 import {StateManager} from '../utils/state-manager';
 import {getURLHostOrProtocol} from '../utils/url';
 import {isPanel} from './utils/tab';
+import RuntimeMesseageListener from './utils/messaging';
 
 declare const __CHROMIUM_MV3__: boolean;
 declare const __THUNDERBIRD__: boolean;
@@ -57,7 +58,7 @@ export default class TabManager {
         this.tabs = {};
         this.getTabMessage = getTabMessage;
 
-        chrome.runtime.onMessage.addListener(async (message: Message, sender, sendResponse) => {
+        RuntimeMesseageListener.addListener(async (message: Message, sender, sendResponse) => {
             switch (message.type) {
                 case MessageType.CS_FRAME_CONNECT: {
                     onColorSchemeChange(message.data.isDark);
