@@ -1,4 +1,3 @@
-import {isFirefox} from '../utils/platform';
 import type {ExtensionData, FilterConfig, TabInfo, Message, UserSettings} from '../definitions';
 import {MessageType} from '../utils/message';
 import RuntimeMesseageListener from './utils/messaging';
@@ -31,25 +30,22 @@ export default class Messenger {
         RuntimeMesseageListener.addListener((message, sender, sendResponse) => this.messageListener(message, sender, sendResponse));
     }
 
-    private static messageListener(message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response: {data?: ExtensionData | TabInfo; error?: string}) => void) {
+    private static messageListener(message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response: {data?: ExtensionData | TabInfo; error?: string}) => void): true | void {
         const allowedSenderURL = [
             chrome.runtime.getURL('/ui/popup/index.html'),
             chrome.runtime.getURL('/ui/devtools/index.html'),
-            chrome.runtime.getURL('/ui/stylesheet-editor/index.html')
+            chrome.runtime.getURL('/ui/stylesheet-editor/index.html'),
         ];
         if (allowedSenderURL.includes(sender.url)) {
-            this.onUIMessage(message, sendResponse);
-            return ([
-                MessageType.UI_GET_DATA,
-            ].includes(message.type));
+            return this.onUIMessage(message, sendResponse);
         }
     }
 
-    private static onUIMessage({type, data}: Message, sendResponse: (response: {data?: ExtensionData | TabInfo; error?: string}) => void) {
+    private static onUIMessage({type, data}: Message, sendResponse: (response: {data?: ExtensionData | TabInfo; error?: string}) => void): true | void {
         switch (type) {
             case MessageType.UI_GET_DATA:
                 this.adapter.collect().then((data) => sendResponse({data}));
-                break;
+                return true;
             case MessageType.UI_SUBSCRIBE_TO_CHANGES:
                 this.changeListenerCount++;
                 break;
@@ -110,7 +106,7 @@ export default class Messenger {
         if (this.changeListenerCount > 0) {
             chrome.runtime.sendMessage<Message>({
                 type: MessageType.BG_CHANGES,
-                data
+                data,
             });
         }
     }
