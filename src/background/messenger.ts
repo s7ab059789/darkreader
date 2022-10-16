@@ -29,11 +29,6 @@ export default class Messenger {
         this.changeListenerCount = 0;
 
         RuntimeMesseageListener.addListener((message, sender, sendResponse) => this.messageListener(message, sender, sendResponse));
-
-        // This is a work-around for Firefox bug which does not permit responding to onMessage handler above.
-        if (isFirefox) {
-            chrome.runtime.onConnect.addListener((port) => this.firefoxPortListener(port));
-        }
     }
 
     private static messageListener(message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response: {data?: ExtensionData | TabInfo; error?: string}) => void) {
@@ -48,48 +43,6 @@ export default class Messenger {
                 MessageType.UI_GET_DATA,
             ].includes(message.type));
         }
-    }
-
-    private static firefoxPortListener(port: chrome.runtime.Port) {
-        let promise: Promise<ExtensionData | TabInfo>;
-        switch (port.name) {
-            case MessageType.UI_GET_DATA:
-                promise = this.adapter.collect();
-                break;
-            // These types require data, so we need to add a listener to the port.
-            case MessageType.UI_APPLY_DEV_DYNAMIC_THEME_FIXES:
-            case MessageType.UI_APPLY_DEV_INVERSION_FIXES:
-            case MessageType.UI_APPLY_DEV_STATIC_THEMES:
-                promise = new Promise((resolve, reject) => {
-                    port.onMessage.addListener((message: Message) => {
-                        const {data} = message;
-                        let error: Error;
-                        switch (port.name) {
-                            case MessageType.UI_APPLY_DEV_DYNAMIC_THEME_FIXES:
-                                error = this.adapter.applyDevDynamicThemeFixes(data);
-                                break;
-                            case MessageType.UI_APPLY_DEV_INVERSION_FIXES:
-                                error = this.adapter.applyDevInversionFixes(data);
-                                break;
-                            case MessageType.UI_APPLY_DEV_STATIC_THEMES:
-                                error = this.adapter.applyDevStaticThemes(data);
-                                break;
-                            default:
-                                throw new Error(`Unknown port name: ${port.name}`);
-                        }
-                        if (error) {
-                            reject(error);
-                        } else {
-                            resolve(null);
-                        }
-                    });
-                });
-                break;
-            default:
-                return;
-        }
-        promise.then((data) => port.postMessage({data}))
-            .catch((error) => port.postMessage({error}));
     }
 
     private static onUIMessage({type, data}: Message, sendResponse: (response: {data?: ExtensionData | TabInfo; error?: string}) => void) {

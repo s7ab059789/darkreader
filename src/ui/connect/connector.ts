@@ -21,26 +21,7 @@ export default class Connector implements ExtensionActions {
         });
     }
 
-    private async firefoxSendRequestWithResponse<T>(type: MessageType, data?: string) {
-        return new Promise<T>((resolve, reject) => {
-            const dataPort = chrome.runtime.connect({name: type});
-            dataPort.onDisconnect.addListener(() => reject());
-            dataPort.onMessage.addListener(({data, error}) => {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve(data);
-                }
-                dataPort.disconnect();
-            });
-            data && dataPort.postMessage({data});
-        });
-    }
-
     async getData() {
-        if (isFirefox) {
-            return await this.firefoxSendRequestWithResponse<ExtensionData>(MessageType.UI_GET_DATA);
-        }
         return await this.sendRequest<ExtensionData>(MessageType.UI_GET_DATA);
     }
 
@@ -87,9 +68,6 @@ export default class Connector implements ExtensionActions {
     }
 
     async applyDevDynamicThemeFixes(text: string) {
-        if (isFirefox) {
-            return await this.firefoxSendRequestWithResponse<void>(MessageType.UI_APPLY_DEV_DYNAMIC_THEME_FIXES, text);
-        }
         return await this.sendRequest<void>(MessageType.UI_APPLY_DEV_DYNAMIC_THEME_FIXES, text);
     }
 
@@ -98,9 +76,6 @@ export default class Connector implements ExtensionActions {
     }
 
     async applyDevInversionFixes(text: string) {
-        if (isFirefox) {
-            return await this.firefoxSendRequestWithResponse<void>(MessageType.UI_APPLY_DEV_INVERSION_FIXES, text);
-        }
         return await this.sendRequest<void>(MessageType.UI_APPLY_DEV_INVERSION_FIXES, text);
     }
 
@@ -109,9 +84,6 @@ export default class Connector implements ExtensionActions {
     }
 
     async applyDevStaticThemes(text: string) {
-        if (isFirefox) {
-            return await this.firefoxSendRequestWithResponse<void>(MessageType.UI_APPLY_DEV_STATIC_THEMES, text);
-        }
         return await this.sendRequest<void>(MessageType.UI_APPLY_DEV_STATIC_THEMES, text);
     }
 
