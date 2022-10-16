@@ -14,8 +14,8 @@ declare const __CHROMIUM_MV3__: boolean;
 declare const __THUNDERBIRD__: boolean;
 
 interface TabManagerOptions {
-    getConnectionMessage: (url: string, isTopFrame: boolean) => Promise<Message>;
-    getTabMessage: (url: string, isTopFrame: boolean) => Message;
+    getConnectionMessage: (tabURL: string, url: string, isTopFrame: boolean) => Promise<Message>;
+    getTabMessage: (tabURL: string, url: string, isTopFrame: boolean) => Message;
     onColorSchemeChange: (isDark: boolean) => void;
 }
 
@@ -49,7 +49,7 @@ export default class TabManager {
     private static tabs: {[tabId: number]: {[frameId: number]: FrameInfo}};
     private static stateManager: StateManager<TabManagerState>;
     private static fileLoader: {get: (params: FetchRequestParameters) => Promise<string>} = null;
-    private static getTabMessage: (url: string, isTopFrame: boolean) => Message;
+    private static getTabMessage: (tabURL: string, frameURL: string, isTopFrame: boolean) => Message;
     private static timestamp: number = null;
     private static LOCAL_STORAGE_KEY = 'TabManager-state';
 
@@ -63,8 +63,8 @@ export default class TabManager {
                 case MessageType.CS_FRAME_CONNECT: {
                     onColorSchemeChange(message.data.isDark);
                     await this.stateManager.loadState();
-                    const reply = (url: string, isTopFrame: boolean) => {
-                        getConnectionMessage(url, isTopFrame).then((message) => {
+                    const reply = (tabURL: string, url: string, isTopFrame: boolean) => {
+                        getConnectionMessage(tabURL, url, isTopFrame).then((message) => {
                             message && chrome.tabs.sendMessage<Message>(sender.tab.id, message, {frameId: sender.frameId});
                         });
                     };
@@ -91,10 +91,11 @@ export default class TabManager {
                     const tabId = sender.tab.id;
                     const {frameId} = sender;
                     const url = sender.url;
+                    const tabURL = sender.tab.url;
 
                     this.addFrame(tabId, frameId, url, this.timestamp);
 
-                    reply(url, frameId === 0);
+                    reply(tabURL, url, frameId === 0);
                     this.stateManager.saveState();
                     break;
                 }
@@ -120,7 +121,7 @@ export default class TabManager {
                     const frameId = sender.frameId;
                     const url = sender.url;
                     if (this.tabs[tabId][frameId].timestamp < this.timestamp) {
-                        const message = this.getTabMessage(url, frameId === 0);
+                        const message = this.getTabMessage(sender.tab.url, url, frameId === 0);
                         chrome.tabs.sendMessage<Message>(tabId, message, {frameId});
                     }
                     this.tabs[sender.tab.id][sender.frameId] = {
@@ -316,7 +317,7 @@ export default class TabManager {
                             return;
                         }
 
-                        const message = this.getTabMessage(url, frameId === 0);
+                        const message = this.getTabMessage(tabURL, url, frameId === 0);
                         if (tab.active && frameId === 0) {
                             chrome.tabs.sendMessage<Message>(tab.id, message, {frameId});
                         } else {

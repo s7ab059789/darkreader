@@ -76,7 +76,7 @@ export class Extension {
         DevTools.init(async () => this.onSettingsChanged());
         Messenger.init(this.getMessengerAdapter());
         TabManager.init({
-            getConnectionMessage: async (url, isTopFrame) => this.getConnectionMessage(url, isTopFrame),
+            getConnectionMessage: async (tabURL, frameURL, isTopFrame) => this.getConnectionMessage(tabURL, frameURL, isTopFrame),
             getTabMessage: this.getTabMessage,
             onColorSchemeChange: this.onColorSchemeChange,
         });
@@ -400,7 +400,7 @@ export class Extension {
     private static async getActiveTabInfo() {
         await this.loadData();
         const url = await TabManager.getActiveTabURL();
-        const info = this.getURLInfo(url);
+        const info = this.getTabInfo(url);
         info.isInjected = await TabManager.canAccessActiveTab();
         if (UserStorage.settings.detectDarkTheme) {
             info.isDarkThemeDetected = await TabManager.isActiveTabDarkThemeDetected();
@@ -408,9 +408,9 @@ export class Extension {
         return info;
     }
 
-    private static async getConnectionMessage(url: string, isTopFrame: boolean) {
+    private static async getConnectionMessage(tabURL: string, url: string, isTopFrame: boolean) {
         await this.loadData();
-        return this.getTabMessage(url, isTopFrame);
+        return this.getTabMessage(tabURL, url, isTopFrame);
     }
 
     private static async loadData() {
@@ -585,7 +585,7 @@ export class Extension {
     //
     //----------------------
 
-    private static getURLInfo(url: string): TabInfo {
+    private static getTabInfo(url: string): TabInfo {
         const {DARK_SITES} = ConfigManager;
         const isInDarkList = isURLInList(url, DARK_SITES);
         const isProtected = !canInjectScript(url);
@@ -598,20 +598,20 @@ export class Extension {
         };
     }
 
-    private static getTabMessage = (url: string, isTopFrame: boolean): TabData => {
+    private static getTabMessage = (tabURL: string, url: string, isTopFrame: boolean): TabData => {
         const settings = UserStorage.settings;
-        const urlInfo = this.getURLInfo(url);
-        if (this.isExtensionSwitchedOn() && isURLEnabled(url, settings, urlInfo)) {
-            const custom = settings.customThemes.find(({url: urlList}) => isURLInList(url, urlList));
-            const preset = custom ? null : settings.presets.find(({urls}) => isURLInList(url, urls));
+        const urlInfo = this.getTabInfo(tabURL);
+        if (this.isExtensionSwitchedOn() && isURLEnabled(tabURL, settings, urlInfo)) {
+            const custom = settings.customThemes.find(({url: urlList}) => isURLInList(tabURL, urlList));
+            const preset = custom ? null : settings.presets.find(({urls}) => isURLInList(tabURL, urls));
             let theme = custom ? custom.theme : preset ? preset.theme : settings.theme;
             if (this.autoState === 'scheme-dark' || this.autoState === 'scheme-light') {
                 const mode = this.autoState === 'scheme-dark' ? 1 : 0;
                 theme = {...theme, mode};
             }
-            const detectDarkTheme = isTopFrame && settings.detectDarkTheme && !isURLInList(url, settings.siteListEnabled) && !isPDF(url);
+            const detectDarkTheme = isTopFrame && settings.detectDarkTheme && !isURLInList(tabURL, settings.siteListEnabled) && !isPDF(tabURL);
 
-            logInfo(`Creating CSS for url: ${url}`);
+            logInfo(`Creating CSS for url: ${tabURL}`);
             logInfo(`Custom theme ${custom ? 'was found' : 'was not found'}, Preset theme ${preset ? 'was found' : 'was not found'}
             The theme(${custom ? 'custom' : preset ? 'preset' : 'global'} settings) used is: ${JSON.stringify(theme)}`);
             switch (theme.engine) {
@@ -672,7 +672,7 @@ export class Extension {
             }
         }
 
-        logInfo(`Site is not inverted: ${url}`);
+        logInfo(`Site is not inverted: ${tabURL}`);
         return {
             type: MessageType.BG_CLEAN_UP,
         };
