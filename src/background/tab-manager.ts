@@ -8,7 +8,7 @@ import {logInfo, logWarn} from './utils/log';
 import {StateManager} from '../utils/state-manager';
 import {getURLHostOrProtocol} from '../utils/url';
 import {isPanel} from './utils/tab';
-import RuntimeMesseageListener from './utils/messaging';
+import RuntimeMessageListener from './utils/messaging';
 import {makeFirefoxHappy} from './make-firefox-happy';
 
 declare const __CHROMIUM_MV3__: boolean;
@@ -59,7 +59,7 @@ export default class TabManager {
         this.tabs = {};
         this.getTabMessage = getTabMessage;
 
-        RuntimeMesseageListener.addListener(async (message: Message, sender, sendResponse) => {
+        RuntimeMessageListener.addListener(async (message: Message, sender, sendResponse) => {
             if (isFirefox && makeFirefoxHappy(message, sender, sendResponse)) {
                 return;
             }

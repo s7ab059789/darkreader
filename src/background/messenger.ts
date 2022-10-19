@@ -1,6 +1,6 @@
 import type {ExtensionData, FilterConfig, TabInfo, Message, UserSettings} from '../definitions';
 import {MessageType} from '../utils/message';
-import RuntimeMesseageListener from './utils/messaging';
+import RuntimeMessageListener from './utils/messaging';
 import {makeFirefoxHappy} from './make-firefox-happy';
 import {isFirefox} from '../utils/platform';
 
@@ -29,7 +29,7 @@ export default class Messenger {
         this.adapter = adapter;
         this.changeListenerCount = 0;
 
-        RuntimeMesseageListener.addListener((message, sender, sendResponse) => this.messageListener(message, sender, sendResponse));
+        RuntimeMessageListener.addListener((message, sender, sendResponse) => this.messageListener(message, sender, sendResponse));
     }
 
     private static messageListener(message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response: {data?: ExtensionData | TabInfo; error?: string} | 'unsupportedSender') => void): true | void {
