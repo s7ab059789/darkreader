@@ -1,6 +1,7 @@
 import type {ExtensionData, FilterConfig, TabInfo, Message, UserSettings} from '../definitions';
 import {MessageType} from '../utils/message';
 import RuntimeMesseageListener from './utils/messaging';
+import {makeFirefoxHappy} from './make-firefox-happy';
 
 export interface ExtensionAdapter {
     collect: () => Promise<ExtensionData>;
@@ -30,7 +31,10 @@ export default class Messenger {
         RuntimeMesseageListener.addListener((message, sender, sendResponse) => this.messageListener(message, sender, sendResponse));
     }
 
-    private static messageListener(message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response: {data?: ExtensionData | TabInfo; error?: string}) => void): true | void {
+    private static messageListener(message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response: {data?: ExtensionData | TabInfo; error?: string} | 'unsupportedSender') => void): true | void {
+        if (isFirefox && makeFirefoxHappy(message, sender, sendResponse)) {
+            return;
+        }
         const allowedSenderURL = [
             chrome.runtime.getURL('/ui/popup/index.html'),
             chrome.runtime.getURL('/ui/devtools/index.html'),
