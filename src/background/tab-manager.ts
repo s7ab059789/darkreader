@@ -69,7 +69,7 @@ export default class TabManager {
                     await this.stateManager.loadState();
                     const reply = (tabURL: string, url: string, isTopFrame: boolean) => {
                         getConnectionMessage(tabURL, url, isTopFrame).then((message) => {
-                            message && RuntimeMessage.sendFrameMessage(sender.tab.id, message, {frameId: sender.frameId});
+                            message && RuntimeMessage.sendDocumentMessage(sender.tab.id, message, {frameId: sender.frameId});
                         });
                     };
 

@@ -29,10 +29,16 @@ function makeChromiumHappy(message: Message, sender: chrome.runtime.MessageSende
 type messageListenerResponse = {data?: ExtensionData | TabInfo; error?: string} | {type: '¯\\_(ツ)_/¯'} |   'unsupportedSender';
 // Note: return value true indicates that sendResponse() will be called asynchroneously
 type messageListenerCallback = (message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response: messageListenerResponse) => void) => true | void | Promise<void>;
+type DocumentInfo = {
+    // 
+    documentId: number | string;
+    tabId: number | null;
+    frameId: number | null;
+}
 
 export default class RuntimeMessage {
     private static listeners: messageListenerCallback[];
-    private static switchboard: {[documentId: number]: {tabId: number, frameId: number}} = {};
+    private static switchboard: {[documentId: number]: DocumentInfo} = {};
 
     static sendMessage(message: Message) {
         chrome.runtime.sendMessage<Message>(message);
