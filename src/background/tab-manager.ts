@@ -8,7 +8,7 @@ import {logInfo, logWarn} from './utils/log';
 import {StateManager} from '../utils/state-manager';
 import {getURLHostOrProtocol} from '../utils/url';
 import {isPanel} from './utils/tab';
-import RuntimeMessageListener from './utils/messaging';
+import RuntimeMessage from './utils/messaging';
 import {makeFirefoxHappy} from './make-firefox-happy';
 
 declare const __CHROMIUM_MV3__: boolean;
@@ -59,7 +59,7 @@ export default class TabManager {
         this.tabs = {};
         this.getTabMessage = getTabMessage;
 
-        RuntimeMessageListener.addListener(async (message: Message, sender, sendResponse) => {
+        RuntimeMessage.addListener(async (message: Message, sender, sendResponse) => {
             if (isFirefox && makeFirefoxHappy(message, sender, sendResponse)) {
                 return;
             }
@@ -69,7 +69,7 @@ export default class TabManager {
                     await this.stateManager.loadState();
                     const reply = (tabURL: string, url: string, isTopFrame: boolean) => {
                         getConnectionMessage(tabURL, url, isTopFrame).then((message) => {
-                            message && chrome.tabs.sendMessage<Message>(sender.tab.id, message, {frameId: sender.frameId});
+                            message && RuntimeMessage.sendFrameMessage(sender.tab.id, message, {frameId: sender.frameId});
                         });
                     };
 

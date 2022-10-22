@@ -7,7 +7,7 @@ import {makeChromiumHappy} from './make-chromium-happy';
 import DevTools from './devtools';
 import {logInfo} from './utils/log';
 import {sendLog} from './utils/sendLog';
-import RuntimeMessageListener from './utils/messaging';
+import RuntimeMessage from './utils/messaging';
 
 type TestMessage = {
     type: 'getManifest';
@@ -112,10 +112,10 @@ if (__WATCH__) {
             }
             switch (message.type) {
                 case 'reload:css':
-                    chrome.runtime.sendMessage<Message>({type: MessageType.BG_CSS_UPDATE});
+                    RuntimeMessage.sendMessage({type: MessageType.BG_CSS_UPDATE});
                     break;
                 case 'reload:ui':
-                    chrome.runtime.sendMessage<Message>({type: MessageType.BG_UI_UPDATE});
+                    RuntimeMessage.sendMessage({type: MessageType.BG_UI_UPDATE});
                     break;
                 case 'reload:full':
                     chrome.tabs.query({}, (tabs) => {
@@ -213,7 +213,7 @@ if (__TEST__) {
 }
 
 if (__DEBUG__ && __LOG__) {
-    RuntimeMessageListener.addListener((message: Message) => {
+    RuntimeMessage.addListener((message: Message) => {
         if (message.type === 'cs-log') {
             sendLog(message.data.level, message.data.log);
         }
