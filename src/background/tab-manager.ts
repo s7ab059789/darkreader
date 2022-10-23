@@ -1,7 +1,7 @@
 import {canInjectScript} from '../background/utils/extension-api';
 import {createFileLoader} from './utils/network';
 import type {FetchRequestParameters} from './utils/network';
-import type {Message} from '../definitions';
+import {Message, DocumentInfo, DocumentState} from '../definitions';
 import {isFirefox} from '../utils/platform';
 import {MessageType} from '../utils/message';
 import {logInfo, logWarn} from './utils/log';
@@ -20,34 +20,13 @@ interface TabManagerOptions {
     onColorSchemeChange: (isDark: boolean) => void;
 }
 
-interface FrameInfo {
-    url?: string;
-    state: DocumentState;
-    timestamp: number;
-    darkThemeDetected?: boolean;
-}
-
 interface TabManagerState {
-    tabs: {[tabId: number]: {[frameId: number]: FrameInfo}};
+    tabs: {[tabId: number]: {[frameId: number]: DocumentInfo}};
     timestamp: number;
-}
-
-/*
- * These states correspond to possible document states in Page Lifecycle API:
- * https://developers.google.com/web/updates/2018/07/page-lifecycle-api#developer-recommendations-for-each-state
- * Some states are not currently used (they are declared for future-proofing).
- */
-enum DocumentState {
-    ACTIVE = 0,
-    PASSIVE = 1,
-    HIDDEN = 2,
-    FROZEN = 3,
-    TERMINATED = 4,
-    DISCARDED = 5,
 }
 
 export default class TabManager {
-    private static tabs: {[tabId: number]: {[frameId: number]: FrameInfo}};
+    private static tabs: {[tabId: number]: {[frameId: number]: DocumentInfo}};
     private static stateManager: StateManager<TabManagerState>;
     private static fileLoader: {get: (params: FetchRequestParameters) => Promise<string>} = null;
     private static getTabMessage: (tabURL: string, url: string, isTopFrame: boolean) => Message;
@@ -59,7 +38,7 @@ export default class TabManager {
         this.tabs = {};
         this.getTabMessage = getTabMessage;
 
-        RuntimeMessage.addListener(async (message: Message, sender, sendResponse) => {
+        RuntimeMessage.addListener(async (message, sender, sendResponse) => {
             if (isFirefox && makeFirefoxHappy(message, sender, sendResponse)) {
                 return;
             }
@@ -69,50 +48,26 @@ export default class TabManager {
                     await this.stateManager.loadState();
                     const reply = (tabURL: string, url: string, isTopFrame: boolean) => {
                         getConnectionMessage(tabURL, url, isTopFrame).then((message) => {
-                            message && RuntimeMessage.sendDocumentMessage(sender.tab.id, message, {frameId: sender.frameId});
+                            message && RuntimeMessage.sendDocumentMessage(sender.documentId, message);
                         });
                     };
 
-                    if (isPanel(sender)) {
-                        // NOTE: Vivaldi and Opera can show a page in a side panel,
-                        // but it is not possible to handle messaging correctly (no tab ID, frame ID).
-                        if (isFirefox) {
-                            if (sender && sender.tab && typeof sender.tab.id === 'number') {
-                                chrome.tabs.sendMessage<Message>(sender.tab.id,
-                                    {
-                                        type: MessageType.BG_UNSUPPORTED_SENDER
-                                    },
-                                    {
-                                        frameId: sender && typeof sender.frameId === 'number' ? sender.frameId : undefined
-                                    });
-                            }
-                        } else {
-                            sendResponse('unsupportedSender');
-                        }
-                        return;
-                    }
+                    const {tabId, frameId, url} = sender;
+                    // TODO: move to origin. After this, tab origin can not change without reloading the child frames
+                    const tabURL: string = frameId === 0 ? url : this.tabs[tabId][0].url;
 
-                    const tabId = sender.tab.id;
-                    const tabURL = sender.tab.url;
-                    const {frameId} = sender;
-                    const url = sender.url;
-
-                    this.addFrame(tabId, frameId, url, this.timestamp);
+                    this.addFrame(sender, this.timestamp);
 
                     reply(tabURL, url, frameId === 0);
                     this.stateManager.saveState();
                     break;
                 }
                 case MessageType.CS_FRAME_FORGET:
-                    if (!sender.tab) {
-                        logWarn('Unexpected message', message, sender);
-                        break;
-                    }
-                    this.removeFrame(sender.tab.id, sender.frameId);
+                    this.removeFrame(sender.tabId, sender.frameId);
                     break;
                 case MessageType.CS_FRAME_FREEZE: {
                     await this.stateManager.loadState();
-                    const info = this.tabs[sender.tab.id][sender.frameId];
+                    const info = this.tabs[sender.tabId][sender.frameId];
                     info.state = DocumentState.FROZEN;
                     info.url = null;
                     this.stateManager.saveState();
@@ -121,24 +76,21 @@ export default class TabManager {
                 case MessageType.CS_FRAME_RESUME: {
                     onColorSchemeChange(message.data.isDark);
                     await this.stateManager.loadState();
-                    const tabId = sender.tab.id;
-                    const tabURL = sender.tab.url;
-                    const frameId = sender.frameId;
-                    const url = sender.url;
+                    const {tabId, frameId, url} = sender;
+                    // TODO: move to origin. After this, tab origin can not change without reloading the child frames
+                    const tabURL: string = frameId === 0 ? url : this.tabs[tabId][0].url;
                     if (this.tabs[tabId][frameId].timestamp < this.timestamp) {
                         const message = this.getTabMessage(tabURL, url, frameId === 0);
                         chrome.tabs.sendMessage<Message>(tabId, message, {frameId});
                     }
-                    this.tabs[sender.tab.id][sender.frameId] = {
-                        url: sender.url,
-                        state: DocumentState.ACTIVE,
-                        timestamp: this.timestamp,
-                    };
+                    sender.state = DocumentState.ACTIVE;
+                    sender.timestamp = this.timestamp;
+                    this.tabs[tabId][frameId] = sender;
                     this.stateManager.saveState();
                     break;
                 }
                 case MessageType.CS_DARK_THEME_DETECTED:
-                    this.tabs[sender.tab.id][sender.frameId].darkThemeDetected = true;
+                    this.tabs[sender.tabId][sender.frameId].darkThemeDetected = true;
                     break;
 
                 case MessageType.CS_FETCH: {
@@ -146,7 +98,7 @@ export default class TabManager {
                     // Sometimes fetch error behaves like synchronous and sends `undefined`
                     const id = message.id;
                     const sendResponse = (response: Partial<Message>) => {
-                        chrome.tabs.sendMessage<Message>(sender.tab.id, {type: MessageType.BG_FETCH_RESPONSE, id, ...response}, {frameId: sender.frameId});
+                        RuntimeMessage.sendDocumentMessage(sender.documentId, {type: MessageType.BG_FETCH_RESPONSE, id, ...response});
                     };
 
                     if (__THUNDERBIRD__) {
@@ -208,19 +160,18 @@ export default class TabManager {
         );
     }
 
-    private static addFrame(tabId: number, frameId: number, url: string, timestamp: number) {
-        let frames: {[frameId: number]: FrameInfo};
+    private static addFrame(documentInfo: DocumentInfo, timestamp: number) {
+        const {tabId, frameId} = documentInfo;
+        let frames: {[frameId: number]: DocumentInfo};
         if (this.tabs[tabId]) {
             frames = this.tabs[tabId];
         } else {
             frames = {};
             this.tabs[tabId] = frames;
         }
-        frames[frameId] = {
-            url,
-            state: DocumentState.ACTIVE,
-            timestamp,
-        };
+        // ?
+        documentInfo.state = DocumentState.ACTIVE;
+        documentInfo.timestamp = timestamp;
     }
 
     private static async removeFrame(tabId: number, frameId: number) {

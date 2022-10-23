@@ -4,6 +4,32 @@ import type {MessageType} from './utils/message';
 import type {AutomationMode} from './utils/automation';
 import type {ThemeEngine} from './generators/theme-engines';
 
+/*
+ * These states correspond to possible document states in Page Lifecycle API:
+ * https://developers.google.com/web/updates/2018/07/page-lifecycle-api#developer-recommendations-for-each-state
+ * Some states are not currently used (they are declared for future-proofing).
+ */
+declare enum DocumentState {
+    ACTIVE = 0,
+    PASSIVE = 1,
+    HIDDEN = 2,
+    FROZEN = 3,
+    TERMINATED = 4,
+    DISCARDED = 5,
+}
+
+export type DocumentId = number | string;
+
+export interface DocumentInfo {
+    tabId: number | null;
+    frameId: number | null;
+    documentId: DocumentId;
+    url: string | null;
+    state: DocumentState;
+    timestamp: number;
+    darkThemeDetected: boolean | null;
+}
+
 export interface ExtensionData {
     isEnabled: boolean;
     isReady: boolean;

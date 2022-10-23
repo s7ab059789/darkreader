@@ -2,7 +2,7 @@
  * This is a 
  */
 
-import type {ExtensionData, Message, TabInfo} from '../../definitions';
+import {DocumentId, DocumentInfo, DocumentState, ExtensionData, Message, TabInfo} from '../../definitions';
 
 import {MessageType} from '../../utils/message';
 import {isPanel} from './../utils/tab';
@@ -28,23 +28,18 @@ function makeChromiumHappy(message: Message, sender: chrome.runtime.MessageSende
 
 type messageListenerResponse = {data?: ExtensionData | TabInfo; error?: string} | {type: '¯\\_(ツ)_/¯'} |   'unsupportedSender';
 // Note: return value true indicates that sendResponse() will be called asynchroneously
-type messageListenerCallback = (message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response: messageListenerResponse) => void) => true | void | Promise<void>;
-type DocumentInfo = {
-    // 
-    documentId: number | string;
-    tabId: number | null;
-    frameId: number | null;
-}
+type messageListenerCallback = (message: Message, sender: DocumentInfo, sendResponse: (response: messageListenerResponse) => void) => true | void | Promise<void>;
 
 export default class RuntimeMessage {
     private static listeners: messageListenerCallback[];
-    private static switchboard: {[documentId: number]: DocumentInfo} = {};
+    private static switchboard: {[documentId: DocumentId]: DocumentInfo} = {};
 
     static sendMessage(message: Message) {
+        // TODO
         chrome.runtime.sendMessage<Message>(message);
     }
 
-    static sendDocumentMessage(documentId: number, message: Message) {
+    static sendDocumentMessage(documentId: DocumentId, message: Message) {
         if (RuntimeMessage.switchboard[documentId]) {
             const address = RuntimeMessage.switchboard[documentId];
             chrome.tabs.sendMessage<Message>(address.tabId, message, {frameId: address.frameId});
@@ -64,8 +59,17 @@ export default class RuntimeMessage {
     }
 
     private static singleListener(message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response: messageListenerResponse) => void) {
+        const info: DocumentInfo = {
+            tabId: sender.tab.id,
+            frameId: sender.frameId,
+            documentId: (sender as any).documentId,
+            timestamp: 0,
+            state: DocumentState.ACTIVE,
+            url: sender.url,
+            darkThemeDetected: null,
+        };
         for (let i = 0; i < RuntimeMessage.listeners.length; i++) {
-            if (RuntimeMessage.listeners[i](message, sender, sendResponse) === true) {
+            if (RuntimeMessage.listeners[i](message, info, sendResponse) === true) {
                 return true;
             }
         }
