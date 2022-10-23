@@ -33,7 +33,7 @@ type messageListenerCallback = (message: Message, sender: DocumentInfo, sendResp
 
 export default class RuntimeMessage {
     private static listeners: messageListenerCallback[];
-    private static switchboard: {[documentId: DocumentId]: DocumentInfo} = {};
+    private static switchboard: {[documentId: DocumentId]: {tabId: number; frameId: number}};
 
     static sendMessage(message: Message) {
         // TODO
@@ -49,6 +49,8 @@ export default class RuntimeMessage {
 
     static addListener(callback: messageListenerCallback) {
         if (!RuntimeMessage.listeners) {
+            // Initialize the RuntimeMessage instance
+            RuntimeMessage.switchboard = {};
             RuntimeMessage.listeners = [callback];
             if (__CHROMIUM_MV2__) {
                 RuntimeMessage.listeners.push(makeChromiumHappy);
@@ -59,7 +61,17 @@ export default class RuntimeMessage {
         }
     }
 
-    private static singleListener(message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response: messageListenerResponse) => void) {
+    private static updateSwitchboard(message: Message, sender: chrome.runtime.MessageSender): DocumentInfo {
+        const tabId = sender.tab.id;
+        const frameId = sender.frameId;
+        const documentId = (sender as any).documentId;
+        if (!RuntimeMessage.switchboard[documentId]) {
+            RuntimeMessage.switchboard[documentId] = {
+                tabId,
+                frameId,
+            }
+        }
+
         const info: DocumentInfo = {
             tabId: sender.tab.id,
             frameId: sender.frameId,
@@ -69,6 +81,12 @@ export default class RuntimeMessage {
             url: sender.url,
             darkThemeDetected: null,
         };
+        
+        return info;
+    }
+
+    private static singleListener(message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response: messageListenerResponse) => void) {
+        const info = this.updateSwitchboard(message, sender);
         for (let i = 0; i < RuntimeMessage.listeners.length; i++) {
             if (RuntimeMessage.listeners[i](message, info, sendResponse) === true) {
                 return true;
