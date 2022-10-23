@@ -2,7 +2,8 @@
  * This is a 
  */
 
-import {DocumentId, DocumentInfo, DocumentState, ExtensionData, Message, TabInfo} from '../../definitions';
+import type {DocumentInfo, ExtensionData, Message, TabInfo} from '../../definitions';
+import {DocumentState, DocumentId} from '../../utils/document';
 
 import {MessageType} from '../../utils/message';
 import {isPanel} from './../utils/tab';

@@ -1,13 +1,13 @@
 import {canInjectScript} from '../background/utils/extension-api';
 import {createFileLoader} from './utils/network';
 import type {FetchRequestParameters} from './utils/network';
-import {Message, DocumentInfo, DocumentState} from '../definitions';
+import {Message, DocumentInfo} from '../definitions';
+import {DocumentState, DocumentId} from '../utils/document';
 import {isFirefox} from '../utils/platform';
 import {MessageType} from '../utils/message';
 import {logInfo, logWarn} from './utils/log';
 import {StateManager} from '../utils/state-manager';
 import {getURLHostOrProtocol} from '../utils/url';
-import {isPanel} from './utils/tab';
 import RuntimeMessage from './utils/messaging';
 import {makeFirefoxHappy} from './make-firefox-happy';
 
