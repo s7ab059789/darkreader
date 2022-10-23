@@ -1,9 +1,13 @@
 /**
- * This is a 
+ * WIP
+ * This is a wrapper/polyfil for browser tab messaging API. It fixes the following inconsistencies:
+ *  - sidebarAction API creates sidebars which are not strictly tabs, so they have no simple way of receiving messages
+ *  - support documentId property even if underlying browser does not support it yet
  */
 
 import type {DocumentInfo, ExtensionData, Message, TabInfo} from '../../definitions';
-import {DocumentState, DocumentId} from '../../utils/document';
+import type {DocumentId} from '../../utils/document';
+import {DocumentState} from '../../utils/document';
 
 import {MessageType} from '../../utils/message';
 import {isPanel} from './../utils/tab';
@@ -26,8 +30,7 @@ function makeChromiumHappy(message: Message, sender: chrome.runtime.MessageSende
     }
 }
 
-
-type messageListenerResponse = {data?: ExtensionData | TabInfo; error?: string} | {type: '¯\\_(ツ)_/¯'} |   'unsupportedSender';
+type messageListenerResponse = {data?: ExtensionData | TabInfo; error?: string} | {type: '¯\\_(ツ)_/¯'} | 'unsupportedSender';
 // Note: return value true indicates that sendResponse() will be called asynchroneously
 type messageListenerCallback = (message: Message, sender: DocumentInfo, sendResponse: (response: messageListenerResponse) => void) => true | void | Promise<void>;
 
@@ -69,7 +72,7 @@ export default class RuntimeMessage {
             RuntimeMessage.switchboard[documentId] = {
                 tabId,
                 frameId,
-            }
+            };
         }
 
         const info: DocumentInfo = {
@@ -81,7 +84,7 @@ export default class RuntimeMessage {
             url: sender.url,
             darkThemeDetected: null,
         };
-        
+
         return info;
     }
 

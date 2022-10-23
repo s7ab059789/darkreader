@@ -1,8 +1,8 @@
 import {canInjectScript} from '../background/utils/extension-api';
 import {createFileLoader} from './utils/network';
 import type {FetchRequestParameters} from './utils/network';
-import {Message, DocumentInfo} from '../definitions';
-import {DocumentState, DocumentId} from '../utils/document';
+import type {Message, DocumentInfo} from '../definitions';
+import {DocumentState} from '../utils/document';
 import {isFirefox} from '../utils/platform';
 import {MessageType} from '../utils/message';
 import {logInfo, logWarn} from './utils/log';
@@ -161,7 +161,7 @@ export default class TabManager {
     }
 
     private static addFrame(documentInfo: DocumentInfo, timestamp: number) {
-        const {tabId, frameId} = documentInfo;
+        const {tabId} = documentInfo;
         let frames: {[frameId: number]: DocumentInfo};
         if (this.tabs[tabId]) {
             frames = this.tabs[tabId];
